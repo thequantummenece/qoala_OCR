@@ -29,11 +29,32 @@
            border-radius: 5px;
            font-size: 16px;
        }
+
+       pre {
+           text-align: left;
+           font-size: 14px;
+           white-space: pre-wrap;
+           max-width: 80%;
+           overflow-x: auto;
+           background-color: #1a1a4e;
+           padding: 20px;
+           border-radius: 5px;
+       }
    </style>
 </head>
 <body>
    <h2>OCR processed successfully!</h2>
-   <p>Your additional success message goes here.</p>
+   <h2>OCR Data</h2>
+   <pre id="ocr-data-body"></pre>
+
+   <script>
+       // Get the OCR data from Flask template variable
+       const ocrData = {{ data | tojson | safe }};
+
+       // Display OCR data in the pre element
+       const ocrDataBody = document.getElementById('ocr-data-body');
+       ocrDataBody.textContent = JSON.stringify(ocrData, null, 2);
+   </script>
    <a href="{{ url_for('home') }}">Go Back</a>
 </body>
 </html>

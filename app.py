@@ -1,34 +1,25 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from datetime import datetime
+from flask import Flask, render_template, request, jsonify
 import os
 import re
 from google.cloud import vision_v1
 from google.cloud.vision_v1 import types
+from supabase import create_client
+from datetime import datetime
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:(Aady24)@localhost/qoala_data'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Configure Supabase
+SUPABASE_URL = 'https://cborceqktamiafwiaodn.supabase.co'
+SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNib3JjZXFrdGFtaWFmd2lhb2RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDM1MjM2NjgsImV4cCI6MjAxOTA5OTY2OH0.qojQGVJdvAAEVBEB5nYiMaGgXWDMeHaJPCWeSFp-U7I'
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+# Ensure the Supabase table exists
+OCR_RECORDS_TABLE = 'ocr_records'
+supabase.table(OCR_RECORDS_TABLE).upsert([
+    {'id': 1, 'identification_number': '', 'name': '', 'last_name': '', 'date_of_birth': '',
+     'date_of_issue': '', 'date_of_expiry': '', 'timestamp': '', 'status': '', 'error_message': ''}
+])
 
-class OCRRecord(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    identification_number = db.Column(db.String(20))
-    name = db.Column(db.String(255))
-    last_name = db.Column(db.String(255))
-    date_of_birth = db.Column(db.String(20))
-    date_of_issue = db.Column(db.String(20))
-    date_of_expiry = db.Column(db.String(20))
-    timestamp = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
-    status = db.Column(db.String(10))
-    error_message = db.Column(db.String(255))
-
-with app.app_context():
-    db.create_all()
 
 @app.route('/',methods = ['GET','POST'])
 def home():
@@ -111,42 +102,69 @@ def upload_image():
             percentage_success = (len(non_null_matches) / len(matches)) * 100
 
             # Return extracted information
-            OCR_parsed =  {
-                "idNumber": id_number_match.group(1) if id_number_match else "Not found",
+            OCR_parsed = {
+                "identification_number": id_number_match.group(1) if id_number_match else "Not found",
                 "name": name_match.group(1) if name_match else "Not found",
-                "lastName": last_name_match.group(1) if last_name_match else "Not found",
-                "dob": dob_match.group(1) if dob_match else "Not found",
-                "issueDate": issue_date_match.group(1) if issue_date_match else "Not found",
-                "expiryDate": expiry_date_match.group(1) if expiry_date_match else "Not found",
+                "last_name": last_name_match.group(1) if last_name_match else "Not found",
+                "date-of-birth": dob_match.group(1) if dob_match else "Not found",
+                "date-of-issue": issue_date_match.group(1) if issue_date_match else "Not found",
+                "date-of-expiry": expiry_date_match.group(1) if expiry_date_match else "Not found",
                 "percentageSuccess": percentage_success,
                 "rawData": ocr_result
             }
+
+            OCR_parsed_refactored ={
+                "identification_number": id_number_match.group(1) if id_number_match else "Not found",
+                "name": name_match.group(1) if name_match else "Not found",
+                "last_name": last_name_match.group(1) if last_name_match else "Not found",
+                "date-of-birth": dob_match.group(1) if dob_match else "Not found",
+                "date-of-issue": issue_date_match.group(1) if issue_date_match else "Not found",
+                "date-of-expiry": expiry_date_match.group(1) if expiry_date_match else "Not found",
+            }
+
             # print(OCR_parsed)
 
 
-            identification_number = OCR_parsed["idNumber"]
+            identification_number = OCR_parsed["identification_number"]
             name = OCR_parsed["name"]
-            last_name = OCR_parsed["lastName"]
-            date_of_birth = OCR_parsed["dob"]
-            date_of_issue = OCR_parsed["issueDate"]
-            date_of_expiry = OCR_parsed["expiryDate"]
+            last_name = OCR_parsed["last_name"]
+            date_of_birth = OCR_parsed["date-of-birth"]
+            date_of_issue = OCR_parsed["date-of-issue"]
+            date_of_expiry = OCR_parsed["date-of-expiry"]
 
-            new_record = OCRRecord(
-                identification_number=identification_number,
-                name=name,
-                last_name=last_name,
-                date_of_birth=date_of_birth,
-                date_of_issue=date_of_issue,
-                date_of_expiry=date_of_expiry,
-                status="success"
+            # Insert the record into the Supabase table
+            success, error_message = insert_record_into_supabase(
+                identification_number, name, last_name, date_of_birth,
+                date_of_issue, date_of_expiry, "success"
             )
-
-            db.session.add(new_record)
-            db.session.commit()
-            return render_template('success.html')
-            # return jsonify({"status": "success", "message": "OCR processed successfully"})
+            if success:
+                return render_template('success.html', data=OCR_parsed_refactored)
+            else:
+                return jsonify(
+                    {"status": "failure", "message": f"Failed to insert record into Supabase: {error_message}"})
         else:
             return jsonify({"status": "failure", "message": "Unable to extract text from the image"})
+
+def insert_record_into_supabase(identification_number, name, last_name, date_of_birth,
+                                date_of_issue, date_of_expiry, status):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data = {
+        'identification_number': identification_number,
+        'name': name,
+        'last_name': last_name,
+        'date_of_birth': date_of_birth,
+        'date_of_issue': date_of_issue,
+        'date_of_expiry': date_of_expiry,
+        'timestamp': timestamp,
+        'status': status,
+        'error_message': '',
+    }
+    try:
+        data,count = supabase.table(OCR_RECORDS_TABLE).insert(data).execute()
+        return True, None
+    except Exception as error:
+        return False,str(error)
+
 
 # Add a new route for the success page
 @app.route('/success', methods=['GET'])
@@ -156,46 +174,43 @@ def success():
 
 @app.route('/ocr-data', methods=['GET'])
 def get_ocr_data():
-    ocr_records = OCRRecord.query.all()
-    result = []
+    response = supabase.table(OCR_RECORDS_TABLE).select("*").execute()
+    ocr_records = response.data if response.data else []
 
+    result = []
     for record in ocr_records:
         result.append({
-            "identification_number": record.identification_number,
-            "name": record.name,
-            "last_name": record.last_name,
-            "date_of_birth": record.date_of_birth,
-            "date_of_issue": record.date_of_issue,
-            "date_of_expiry": record.date_of_expiry,
-            "timestamp": record.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            "status": record.status,
-            "error_message": record.error_message
+            "identification_number": record.get('identification_number', ''),
+            "name": record.get('name', ''),
+            "last_name": record.get('last_name', ''),
+            "date_of_birth": record.get('date_of_birth', ''),
+            "date_of_issue": record.get('date_of_issue', ''),
+            "date_of_expiry": record.get('date_of_expiry', ''),
+            "timestamp": record.get('timestamp', ''),
+            "status": record.get('status', ''),
+            "error_message": record.get('error_message', '')
         })
 
     return jsonify(result)
 
 @app.route('/update-ocr/<int:id>', methods=['PUT'])
 def update_ocr_data(id):
-    record = OCRRecord.query.get(id)
+    # Assume you have a JSON payload with updated data in the request
+    updated_data = request.json
 
-    if record:
-        db.session.commit()
-
-        return jsonify({"status": "success", "message": f"OCR record {id} updated successfully"})
+    response, error = supabase.table(OCR_RECORDS_TABLE).update(updated_data).eq("id",id).execute()
+    if error:
+        return jsonify({"status": "failure", "message": f"Failed to update record in Supabase: {error}"})
     else:
-        return jsonify({"status": "failure", "message": f"OCR record {id} not found"})
+        return jsonify({"status": "success", "message": f"OCR record {id} updated successfully"})
 
 @app.route('/delete-ocr/<int:id>', methods=['DELETE'])
 def delete_ocr_data(id):
-    record = OCRRecord.query.get(id)
-
-    if record:
-        record.status = "deleted"
-        db.session.commit()
-
-        return jsonify({"status": "success", "message": f"OCR record {id} deleted successfully"})
+    response, error = supabase.table(OCR_RECORDS_TABLE).delete().eq("id",id).execute()
+    if error:
+        return jsonify({"status": "failure", "message": f"Failed to delete record in Supabase: {error}"})
     else:
-        return jsonify({"status": "failure", "message": f"OCR record {id} not found"})
+        return jsonify({"status": "success", "message": f"OCR record {id} deleted successfully"})
 
 if __name__ == '__main__':
     app.run(debug=True)

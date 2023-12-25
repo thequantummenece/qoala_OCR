@@ -14,7 +14,6 @@
            flex-direction: column;
            align-items: center;
            justify-content: center;
-           height: 100vh;
        }
 
        h1, h2 {
@@ -104,29 +103,32 @@ button:active {
     transition: padding-bottom .2s; /* Added transition for smooth animation */
 }
 
-
        table {
-           width: 100%;
-           border-collapse: collapse;
-           margin-top: 20px;
-       }
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
 
-       th, td {
-           padding: 15px;
-           text-align: left;
-       }
+    th, td {
+        padding: 15px;
+        text-align: left;
+    }
 
-       th {
-           background-color: #007bff;
-       }
+    th {
+        background-color: #007bff;
+    }
 
-       tr:nth-child(even) {
-           background-color: #f2f2f2;
-       }
+    tr:nth-child(even) {
+        background-color: #1a1a4e; /* Dark blue background for even rows */
+    }
 
-       tr:hover {
-           background-color: #ddd;
-       }
+    tr:nth-child(odd) {
+        background-color: #33E9FF; /* cyan background for odd rows */
+    }
+
+    tr:hover {
+        background-color: #ddd;
+    }
    </style>
 </head>
 <body>
@@ -155,37 +157,36 @@ button:active {
    </table>
 
    <script>
-       // Fetch and display OCR data on page load
-fetch('/ocr-data')
-    .then(response => response.json())
-    .then(data => {
-        const ocrDataBody = document.getElementById('ocr-data-body');
-        data.forEach(record => {
-            const row = document.createElement('tr');
+    // Fetch and display OCR data on page load
+    fetch('/ocr-data')
+        .then(response => response.json())
+        .then(data => {
+            const ocrDataBody = document.getElementById('ocr-data-body');
+            data.forEach(record => {
+                const row = document.createElement('tr');
 
-            // Define the order of columns to match the table header
-            const columnsOrder = [
-                'identification_number',
-                'name',
-                'last_name',
-                'date_of_birth',
-                'date_of_issue',
-                'date_of_expiry',
-                'status',
-                'timestamp',
-                'error_message'
-            ];
+                // Create a cell for each property of the record
+                const properties = [
+                    'identification_number',
+                    'name',
+                    'last_name',
+                    'date_of_birth',
+                    'date_of_issue',
+                    'date_of_expiry',
+                    'status',
+                    'timestamp',
+                    'error_message'
+                ];
 
-            columnsOrder.forEach(column => {
-                const cell = document.createElement('td');
-                cell.textContent = record[column];
-                row.appendChild(cell);
+                properties.forEach(property => {
+                    const cell = document.createElement('td');
+                    cell.textContent = record[property];
+                    row.appendChild(cell);
+                });
+
+                ocrDataBody.appendChild(row);
             });
-
-            ocrDataBody.appendChild(row);
         });
-    });
-
-   </script>
+</script>
 </body>
 </html>
