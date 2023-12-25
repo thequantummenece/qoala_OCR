@@ -156,20 +156,36 @@ button:active {
 
    <script>
        // Fetch and display OCR data on page load
-       fetch('/ocr-data')
-           .then(response => response.json())
-           .then(data => {
-               const ocrDataBody = document.getElementById('ocr-data-body');
-               data.forEach(record => {
-                   const row = document.createElement('tr');
-                   Object.values(record).forEach(value => {
-                       const cell = document.createElement('td');
-                       cell.textContent = value;
-                       row.appendChild(cell);
-                   });
-                   ocrDataBody.appendChild(row);
-               });
-           });
+fetch('/ocr-data')
+    .then(response => response.json())
+    .then(data => {
+        const ocrDataBody = document.getElementById('ocr-data-body');
+        data.forEach(record => {
+            const row = document.createElement('tr');
+
+            // Define the order of columns to match the table header
+            const columnsOrder = [
+                'identification_number',
+                'name',
+                'last_name',
+                'date_of_birth',
+                'date_of_issue',
+                'date_of_expiry',
+                'status',
+                'timestamp',
+                'error_message'
+            ];
+
+            columnsOrder.forEach(column => {
+                const cell = document.createElement('td');
+                cell.textContent = record[column];
+                row.appendChild(cell);
+            });
+
+            ocrDataBody.appendChild(row);
+        });
+    });
+
    </script>
 </body>
 </html>
