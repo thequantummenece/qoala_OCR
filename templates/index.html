@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Thai ID OCR</title>
+   <style>
+       body {
+           font-family: 'Arial', sans-serif;
+           background: linear-gradient(to right, #4facfe, #00f2fe);
+           color: #fff;
+           margin: 0;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           justify-content: center;
+           height: 100vh;
+       }
+
+       h1, h2 {
+           margin-bottom: 20px;
+       }
+
+       form {
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           margin-bottom: 20px;
+       }
+
+       input {
+           margin-top: 10px;
+           margin-bottom: 10px;
+           padding: 10px;
+           border: none;
+           border-radius: 5px;
+           font-size: 16px;
+       }
+
+      /* Updated Styles for Upload Button */
+button {
+    appearance: button;
+    background-color: #1899D6;
+    border: solid transparent;
+    border-radius: 16px;
+    border-width: 0 0 4px;
+    box-sizing: border-box;
+    color: #FFFFFF;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    line-height: 20px;
+    margin: 0;
+    outline: none;
+    overflow: visible;
+    padding: 13px 19px;
+    text-align: center;
+    text-transform: uppercase;
+    touch-action: manipulation;
+    transform: translateZ(0);
+    transition: filter .2s;
+    user-select: none;
+    -webkit-user-select: none;
+    vertical-align: middle;
+    white-space: nowrap;
+    position: relative; /* Added for positioning pseudo-element */
+}
+
+button:after {
+    background-clip: padding-box;
+    background-color: #1CB0F6;
+    border: solid transparent;
+    border-radius: 16px;
+    border-width: 0 0 4px;
+    bottom: -4px;
+    content: "";
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: -1;
+}
+
+button:main, button:focus {
+    user-select: auto;
+}
+
+button:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+button:disabled {
+    cursor: auto;
+}
+
+button:active:after {
+    border-width: 0 0 0px;
+}
+
+button:active {
+    padding-bottom: 10px;
+    transition: padding-bottom .2s; /* Added transition for smooth animation */
+}
+
+
+       table {
+           width: 100%;
+           border-collapse: collapse;
+           margin-top: 20px;
+       }
+
+       th, td {
+           padding: 15px;
+           text-align: left;
+       }
+
+       th {
+           background-color: #007bff;
+       }
+
+       tr:nth-child(even) {
+           background-color: #f2f2f2;
+       }
+
+       tr:hover {
+           background-color: #ddd;
+       }
+   </style>
+</head>
+<body>
+   <h1>Thai ID OCR</h1>
+   <form action="/upload" method="post" enctype="multipart/form-data">
+       <input type="file" name="file" accept=".png, .jpg, .jpeg" required>
+       <button type="submit">Upload</button>
+   </form>
+
+   <h2>OCR Data</h2>
+   <table>
+       <thead>
+           <tr>
+               <th>ID Number</th>
+               <th>Name</th>
+               <th>Last Name</th>
+               <th>Date of Birth</th>
+               <th>Date of Issue</th>
+               <th>Date of Expiry</th>
+               <th>Status</th>
+               <th>Timestamp</th>
+               <th>Error Message</th>
+           </tr>
+       </thead>
+       <tbody id="ocr-data-body"></tbody>
+   </table>
+
+   <script>
+       // Fetch and display OCR data on page load
+       fetch('/ocr-data')
+           .then(response => response.json())
+           .then(data => {
+               const ocrDataBody = document.getElementById('ocr-data-body');
+               data.forEach(record => {
+                   const row = document.createElement('tr');
+                   Object.values(record).forEach(value => {
+                       const cell = document.createElement('td');
+                       cell.textContent = value;
+                       row.appendChild(cell);
+                   });
+                   ocrDataBody.appendChild(row);
+               });
+           });
+   </script>
+</body>
+</html>
